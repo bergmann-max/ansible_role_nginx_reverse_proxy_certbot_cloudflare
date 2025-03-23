@@ -1,2 +1,12 @@
 ---
-# roles/ansible_role_template/handlers/main.yml
+# role/ansible_role_nginx_reverse_proxy_certbot_cloudflare /handlers/main.yml
+
+- name: Restart Nginx
+  ansible.builtin.service:
+    name: nginx
+    state: restarted
+
+- name: Reload Nginx
+  ansible.builtin.service:
+    name: nginx
+    state: reloaded

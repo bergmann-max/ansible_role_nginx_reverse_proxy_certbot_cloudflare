@@ -1,7 +1,81 @@
 ---
-# roles/ansible_role_template/tasks/main.yml
+# role/ansible_role_nginx_reverse_proxy_certbot_cloudflare /tasks/main.yml
 
-- name: Update repositories cache and install "foo" package
+- name: Install Nginx and Certbot
   ansible.builtin.apt:
-    name: foo
-    update_cache: yes
+    name:
+      - nginx
+      - certbot
+      - python3-certbot-nginx
+    state: present
+    update_cache: true
+
+- name: Create webroot directory
+  ansible.builtin.file:
+    path: "/var/www/{{ domain }}"
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: "u=rwx,g=rx,o=rx"
+
+- name: Copy Nginx configuration
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    dest: "/etc/nginx/sites-available/{{ domain }}"
+    owner: root
+    group: root
+    mode: "u=rw,g=r,o=r"
+  notify: Restart Nginx
+
+- name: Create symlink for Nginx configuration
+  ansible.builtin.file:
+    src: "/etc/nginx/sites-available/{{ domain }}"
+    dest: "/etc/nginx/sites-enabled/{{ domain }}"
+    state: link
+  notify: Restart Nginx
+
+- name: Install Certbot Cloudflare DNS plugin
+  ansible.builtin.apt:
+    name: python3-certbot-dns-cloudflare
+    state: present
+
+- name: Create Cloudflare API token file
+  ansible.builtin.copy:
+    dest: "/etc/letsencrypt/cloudflare.ini"
+    content: |
+      dns_cloudflare_api_token = {{ cloudflare_api_token }}
+    mode: "u=rw,g=,o="
+
+- name: Check if Let's Encrypt certificate exists
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/{{ domain }}/chain.pem"
+  register: cert_stat
+
+- name: Obtain Let's Encrypt certificate with Certbot
+  ansible.builtin.command: >
+    certbot certonly \
+    --dns-cloudflare \
+    --dns-cloudflare-credentials /etc/letsencrypt/cloudflare.ini \
+    -d {{ domain }} -d www.{{ domain }} \
+    --non-interactive \
+    --agree-tos \
+    --email {{ email }}
+  when: not cert_stat.stat.exists
+  args:
+    creates: "/etc/letsencrypt/live/{{ domain }}/fullchain.pem"
+  register: certbot_result
+  changed_when: certbot_result.rc == 0
+  notify: Reload Nginx
+
+- name: Set up automatic certificate renewal
+  ansible.builtin.cron:
+    name: "Certbot Auto-Renewal"
+    job: '/usr/bin/certbot renew --dns-cloudflare --dns-cloudflare-credentials /etc/letsencrypt/cloudflare.ini --deploy-hook "systemctl reload nginx"'
+    minute: "0"
+    hour: "4"
+
+- name: Start and enable Nginx
+  ansible.builtin.service:
+    name: nginx
+    state: started
+    enabled: true

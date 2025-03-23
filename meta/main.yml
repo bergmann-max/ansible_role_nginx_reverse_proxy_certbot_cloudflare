@@ -1,9 +1,18 @@
 ---
-# roles/ansible_role_template/meta/main.yml
+# role/ansible_role_nginx_reverse_proxy_certbot_cloudflare /meta/main.yml
 
 galaxy_info:
   author: Max Bergmann
-  description: An Ansible role template
+  description: Installs Nginx with Let's Encrypt SSL using Cloudflare DNS
   license: MIT
   min_ansible_version: "2.9"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - all
+  galaxy_tags:
+    - nginx
+    - letsencrypt
+    - certbot
+    - cloudflare
 dependencies: []

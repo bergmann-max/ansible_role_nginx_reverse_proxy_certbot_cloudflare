@@ -1,2 +1,7 @@
 ---
-# roles/ansible_role_template/defaults/main.yml
+# role/ansible_role_nginx_reverse_proxy_certbot_cloudflare /defaults/main.yml
+
+domain: example.com
+backend_port: 3000
+email: admin@example.com
+cloudflare_api_token: "YOUR_CLOUDFLARE_API_TOKEN" # Don't forget to encrypt the API key with Ansible vault!
